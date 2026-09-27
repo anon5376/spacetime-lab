@@ -1,0 +1,18 @@
+# Allowlist: publish only what is needed to build, run and audit the lab.
+/*
+!/.gitignore
+!/Makefile
+!/README.md
+!/stlab.command
+!/include/
+!/src/
+!/data/
+!/tools/
+!/doc/
+/doc/*
+!/doc/SPACE.md
+!/doc/MERGER.md
+!/doc/GUIDE.md
+!/doc/PHYSICS.md
+!/doc/stlab.1
+.DS_Store

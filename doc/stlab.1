@@ -1,0 +1,591 @@
+.TH STLAB 1 "September 27, 2026" "Spacetime Lab" "User Commands"
+.SH NAME
+stlab \- relativity demos and N-body gravity sandbox
+.SH SYNOPSIS
+.B stlab
+[\fIOPTIONS\fR]
+.SH DESCRIPTION
+.B stlab
+runs ten deterministic relativity scenario presets with a 60 frames-per-second
+frame loop, an interactive N-body gravity sandbox
+.RB ( \-\-sandbox ),
+a real Solar System simulator built on JPL Horizons ephemerides
+.RB ( \-\-space ),
+and a cinematic binary black hole merger view
+.RB ( \-\-merger ).
+It renders an ASCII live view on a terminal, and can export
+deterministic CSV time series and P6 PPM raster images.
+On macOS the sandbox can also run in a native window
+.RB ( \-\-visual );
+a headless visual framebuffer render to PPM works on every platform
+.RB ( \-\-visual\-shot ).
+The
+.B \-\-space
+and
+.B \-\-merger
+views open a native window by default on macOS
+.RB ( \-\-visual
+is accepted but not required) and run headless under
+.B \-\-visual\-shot
+or
+.BR \-\-movie .
+.PP
+Physics uses SI doubles throughout (meters, kilograms, seconds, radians)
+with seeded random number generators only.
+The same command line arguments produce byte-identical CSV and PPM files.
+.PP
+With no flags,
+.B stlab
+starts the
+.I twin
+scenario interactively when standard input is a terminal,
+and falls back to a headless batch run otherwise.
+.SH OPTIONS
+All value flags accept both
+.BI "\-\-flag " value
+and
+.BI "\-\-flag=" value
+forms.
+.TP
+.BI "\-\-scenario " name|all
+Scenario preset:
+.BR twin ,
+.BR pole ,
+.BR doppler ,
+.BR mercury ,
+.BR gps ,
+.BR bend ,
+.BR ring ,
+.BR flamm ,
+.BR chirp ,
+.BR shadow ,
+or
+.B all
+for every preset in that order.
+Default is
+.BR twin .
+A bare
+.B \-\-smoke
+run without
+.B \-\-scenario
+runs
+.BR all .
+Unknown names fail with exit status 2.
+.TP
+.BI "\-\-frames " N
+Frames per scenario, an integer 0 to 1000000.
+Default is 600 (10 seconds at 60 fps).
+Without an explicit
+.B \-\-frames ,
+.B \-\-smoke
+uses 1 frame per scenario, and sandbox smoke uses 60.
+When a run outlasts a preset frame count, the preset loops deterministically.
+In interactive mode
+.B \-\-frames
+caps the session length instead.
+.TP
+.BI "\-\-ppm " path
+PPM output path.
+For one scenario the path is used verbatim as the output file.
+When the scenario set is
+.B all ,
+the path names a directory and each scenario is written as
+.IB path /<scen>.ppm
+(parent directories must already exist).
+Without
+.B \-\-ppm ,
+no PPM file is written.
+Sandbox interactive export defaults to
+.IR sandbox.ppm .
+.TP
+.BI "\-\-csv " path
+CSV output path, with the same file-or-directory rule as
+.BR \-\-ppm .
+Without
+.B \-\-csv ,
+no CSV file is written.
+Sandbox interactive export defaults to
+.IR sandbox.csv .
+.TP
+.B \-\-sandbox
+Run the N-body sandbox mode instead of the scenario presets.
+Uses
+.B \-\-preset
+and
+.B \-\-seed
+below; interactive on a terminal, headless batch with
+.B \-\-smoke
+or when standard input is not a terminal.
+.TP
+.BI "\-\-preset " N
+Preset index for the selected mode. With
+.BR \-\-sandbox ,
+index 0 to 3:
+.B 0
+solar (free Sun plus 8 planets),
+.B 1
+binary (two 1e30 kg stars plus a planet),
+.B 2
+hole_disk (fixed 10 solar-mass hole plus a seeded 24-particle ring and probe),
+.B 3
+slingshot (fixed Jupiter-mass planet plus a probe).
+With
+.BR \-\-merger ,
+index 0 to 3 selects the binary: 0 GW150914-like 36+29 Msun,
+1 equal mass 30+30 Msun, 2 unequal q = 3 (30+10 Msun),
+3 extreme q = 8 (24+3 Msun).
+With
+.BR \-\-space ,
+index 0 to 5 selects the scenario: 0 Solar System at J2000.0,
+1 Solar System today, 2 Sun replaced by a 1 Msun black hole,
+3 rogue 10 Msun black-hole flyby, 4 Earth swarm (2000 Earths at 1 AU),
+5 black hole plus 1,000,000 test Earths.
+Default is 0.
+Out-of-range values fail with exit status 2.
+.TP
+.BI "\-\-seed " N
+Unsigned integer seed for sandbox preset generation.
+Default is 20260927.
+Same preset plus same seed gives the same initial state.
+.TP
+.BI "\-\-integrator " verlet|rk4
+Sandbox stepper: velocity Verlet (default) or classic 4th-order
+Runge-Kutta. The RK4 stepper itself performs no collision pass and no
+speed cap; the application runs the shared post-step pass
+(merge/bounce collision resolution plus the speed cap) after every
+RK4 step, so both integrators apply identical collision and cap
+policy -- only the stepping scheme differs. The interactive header
+and the headless summary line report the active stepper as
+integ=verlet or integ=rk4. Other values fail with exit status 2.
+.TP
+.B \-\-visual
+With
+.BR \-\-sandbox :
+run the sandbox in a native window instead of the character-grid
+terminal view. With
+.B \-\-merger
+or
+.BR \-\-space
+it is accepted but not required (those views window by default).
+macOS only -- AppKit driven through the Objective-C
+runtime with system frameworks, no third-party dependencies; on other
+platforms it prints "stlab: --visual needs macOS (AppKit)" and exits 1.
+The software rasterizer draws a 1280x800 framebuffer (shaded body
+discs, fading trails, starfield, HUD) with the same keys and spawn
+form as the terminal screen.
+.B \-\-frames
+caps the session length;
+.B \-\-smoke
+is ignored.
+.TP
+.BI "\-\-visual\-shot " path
+With
+.BR \-\-sandbox :
+headless visual render -- steps the sim
+.B \-\-frames
+frames (default 60), then writes the final 1280x800 framebuffer as a
+P6 PPM to
+.IR path .
+No window and no pacing; works on every platform; identical arguments
+produce a byte-identical file. When both visual flags are given,
+.B \-\-visual\-shot
+takes precedence. Without
+.BR \-\-sandbox ,
+.BR \-\-merger ,
+or
+.BR \-\-space ,
+both visual flags are ignored. With
+.B \-\-merger
+or
+.B \-\-space
+it renders the last of
+.B \-\-frames
+frames (default 600) of the merger or space view to
+.IR path .
+.TP
+.B \-\-merger
+Cinematic binary black hole merger view: a Peters 0PN inspiral
+timeline, shaped plunge, damped-sinusoid ringdown, and
+remnant/QNM fits drive a rendered spacetime sheet rippled by the
+retarded-time quadrupole strain.
+.B \-\-preset
+0 to 3 selects the binary (see above). Opens a window by default;
+.B \-\-visual\-shot
+or
+.B \-\-movie
+run headless. See
+.IR doc/MERGER.md .
+.TP
+.B \-\-space
+Full space simulator: the real Solar System from NASA JPL Horizons
+state vectors (J2000 or today's epoch), Newtonian N-body plus a 1PN
+correction, J2/J4 zonal harmonics, collisions, tidal disruption and
+black-hole capture, time warp in both directions with checkpoint-exact
+rewind, and a console for sandbox edits.
+.B \-\-preset
+0 to 5 selects the scenario (see above). Opens a window by default;
+.B \-\-visual\-shot
+or
+.B \-\-movie
+run headless. See
+.IR doc/SPACE.md .
+.TP
+.BI "\-\-movie " dir
+With
+.B \-\-merger
+or
+.B \-\-space
+headless: write a PPM frame sequence
+.RI ( merger_NNNNN.ppm
+or
+.RI space_NNNNN.ppm )
+to
+.IR dir ;
+parent directories must already exist.
+.TP
+.BI "\-\-movie\-every " N
+Frame stride for
+.BR \-\-movie ,
+an integer >= 1 (default 2): every Nth frame is written.
+.TP
+.B \-\-smoke
+Headless run: no raw-mode user interface, no pacing unless configured,
+prints one summary line per scenario (or sandbox run) and exits.
+.TP
+.B \-\-list
+Print the ten scenario preset names, one per line, and exit 0.
+.TP
+.B \-\-help
+.TQ
+.B \-h
+Print the built-in help text and exit 0.
+.TP
+.B \-\-no\-adapt
+Disable 60 fps frame pacing; run as fast as possible.
+Output bytes are unchanged.
+.SH KEYS
+Interactive screens use raw-mode single-key input (no Enter needed).
+.SS Scenario screen
+.TP
+.B W S
+(or up/down arrows) orbit the camera pitch up/down.
+.TP
+.B A D
+(or left/right arrows) orbit the camera yaw left/right.
+.TP
+.B "+ = R"
+Zoom the camera in;
+.B "\- _ F"
+zoom out.
+.TP
+.B 1\-9 0
+Switch scenario: 1 to 9 select presets 1 to 9, 0 selects preset 10
+.RB ( shadow ).
+Resets the frame counter.
+.TP
+.B P
+Pause or resume stepping.
+.TP
+.B E
+Export the current frame: one CSV row plus one PPM view.
+Uses the
+.B \-\-csv
+and
+.B \-\-ppm
+paths with the single-scenario rule (defaults
+.IB <scen>.csv
+and
+.IB <scen>.ppm ).
+.TP
+.B Q
+Quit.
+Escape and Ctrl-C also quit.
+.SS Sandbox screen
+.TP
+.B W S
+(or up/down arrows) orbit the camera pitch up/down.
+.TP
+.B A D
+(or left/right arrows) orbit the camera yaw left/right.
+.TP
+.B "+ = R"
+Zoom the camera in;
+.B "\- _ F"
+zoom out.
+.TP
+.B Tab
+Cycle the follow target: centroid, then body 0 through body n-1.
+.TP
+.B N
+Open the spawn-body form.
+The form is prefilled with a probe on a circular orbit about body 0
+through the view center.
+.TP
+.B K
+Remove the followed body (compacts the body list, clears trails).
+.TP
+.B G
+Load the next preset (solar, binary, hole_disk, slingshot, wrapping around).
+Resets the follow target and clears trails.
+.TP
+.B Z X
+Halve (Z) or double (X) the integration step dt, clamped to 1e-6 s
+through 1e9 s. The default dt is 1000 s.
+.TP
+.B C
+Cycle the time warp: 1, 10, then 100 integrator steps per frame.
+.TP
+.B T
+Toggle orbit trails (ring buffer, depth 128) on or off.
+Turning trails off clears them.
+.TP
+.B D
+Visual mode only: toggle the spacetime-grid sheet and its orientation
+aids (x/y/z axis triad, 100 px scale bar with auto m/km/AU units).
+The sheet extends toward the horizon -- a uniform core lattice
+continues with geometrically spaced lines far out -- and is an
+ILLUSTRATIVE potential-shaped dent
+(h = \-K * sum w_i s^2/(d_i^2 + s^2) in the orbital plane, mass weights
+w_i = (m_i/M_max)^0.25, kernel width and depth set in view units),
+not the spacetime metric, and has no effect on the physics.
+In visual mode
+.B D
+takes over the WASD yaw-right binding; the Right arrow still yaws.
+.TP
+.B P
+Pause or resume stepping.
+.TP
+.B E
+Export the body snapshot CSV plus the current PPM view.
+Uses the
+.B \-\-csv
+and
+.B \-\-ppm
+paths, defaulting to
+.I sandbox.csv
+and
+.IR sandbox.ppm .
+.TP
+.B ?
+Toggle the built-in key help (press
+.B ?
+again or any other handled key path to return).
+.TP
+.B Q
+Quit.
+Escape and Ctrl-C also quit.
+.SS Spawn form
+.TP
+.B up down
+Move between the eleven fields: name, mass_kg, radius_m, px_m, py_m, pz_m,
+vx_m_s, vy_m_s, vz_m_s, fixed, SPAWN>.
+.TP
+.B typing
+Printable characters append to the current field; backspace (DEL or Ctrl-H)
+deletes one character.
+Numbers accept forms such as 1.989e30; the fixed field accepts y or n.
+.TP
+.B Enter
+Advance to the next field; pressing Enter on SPAWN> validates and spawns
+the body (mass must be positive, radius non-negative, positions and
+velocities numeric). The new body becomes the follow target.
+.TP
+.B Esc
+Cancel without spawning.
+.SS "Space and merger screens"
+The
+.B \-\-space
+and
+.B \-\-merger
+views (windowed on macOS, or headless frame output) have their own key
+maps -- warp ladder, camera, console commands, and view toggles --
+documented in
+.I doc/SPACE.md
+and
+.I doc/MERGER.md .
+.SH FILES
+.SS Scenario CSV
+Headless scenario runs append one row per frame.
+The header line is:
+.PP
+.RS 4
+frame,t_s,x_m,y_m,z_m,q,obs0,obs1,obs2,obs3,obs4,obs5,obs6,obs7
+.RE
+.PP
+Columns are the frame index, sim time in seconds, head position in meters,
+head observable, then all eight observable slots in SI units
+(see the per-preset observable labels printed by the interactive screen).
+Values use %.17g formatting, comma-separated, one row per frame.
+Interactive
+.B E
+writes the same header plus the single current-frame row.
+.SS Sandbox headless CSV
+Sandbox batch runs write a time-series energy log with the header:
+.PP
+.RS 4
+frame,t_s,E_J,n
+.RE
+.PP
+Columns are the frame index, sim time in seconds, total system energy in
+joules, and live body count.
+.SS Sandbox body-snapshot CSV
+Sandbox interactive
+.B E
+writes a one-row-per-body snapshot.
+The first line is
+.IB t_s= <time>
+and the second line is the header:
+.PP
+.RS 4
+name,m_kg,r_m,px_m,py_m,pz_m,vx_m_s,vy_m_s,vz_m_s,fixed
+.RE
+.PP
+Body names are sanitized on spawn (commas, quotes, and newlines become
+spaces) so rows stay parseable.
+Masses are kilograms, radii and positions meters, velocities meters per
+second; fixed is 1 for fixed bodies, 0 otherwise.
+.SS PPM raster
+All PPM exports are binary P6 format: a
+.I P6
+magic line, a size line
+.RI ( "320 200"
+for scenario and terminal-sandbox exports,
+.I "1280 800"
+for
+.BR \-\-visual\-shot ),
+a
+.I 255
+maxval line, then width*height RGB byte triples, top row first.
+Scenario views paint phosphor points plus an amber path over dim axes;
+sandbox views paint the followed body bright, fixed bodies amber, free
+bodies white, and dim trail polylines.
+.SH EXAMPLES
+List the scenario presets:
+.PP
+.RS 4
+stlab \-\-list
+.RE
+.PP
+Run every scenario headless, 60 frames each, fastest:
+.PP
+.RS 4
+stlab \-\-scenario all \-\-frames 60 \-\-ppm /tmp \-\-csv /tmp
+.br
+\-\-smoke \-\-no\-adapt
+.RE
+.PP
+Run one scenario interactively when standard input is a terminal:
+.PP
+.RS 4
+stlab \-\-scenario twin \-\-frames 600
+.RE
+.PP
+Run the sandbox on the binary preset:
+.PP
+.RS 4
+stlab \-\-sandbox \-\-preset 1
+.RE
+.PP
+Run every sandbox preset headless with exports:
+.PP
+.RS 4
+for p in 0 1 2 3; do stlab \-\-sandbox \-\-preset $p \-\-frames 60
+.br
+\-\-ppm /tmp/sbx/p$p.ppm \-\-csv /tmp/sbx/p$p.csv \-\-smoke \-\-no\-adapt; done
+.RE
+.PP
+Open the sandbox in a native window (macOS only):
+.PP
+.RS 4
+stlab \-\-sandbox \-\-preset 0 \-\-visual
+.RE
+.PP
+Render the visual view headless to a 1280x800 PPM (any platform):
+.PP
+.RS 4
+stlab \-\-sandbox \-\-preset 0 \-\-frames 60 \-\-visual\-shot /tmp/vis.ppm
+.RE
+.PP
+Open the space simulator on today's Solar System (macOS), or render it
+headless elsewhere:
+.PP
+.RS 4
+stlab \-\-space \-\-preset 1
+.br
+stlab \-\-space \-\-preset 0 \-\-frames 300 \-\-visual\-shot /tmp/s.ppm
+.RE
+.PP
+Render a merger movie frame sequence and a final still:
+.PP
+.RS 4
+stlab \-\-merger \-\-preset 0 \-\-frames 2400 \-\-movie /tmp/f
+.br
+\-\-movie\-every 2
+.RE
+.SH "MAKE TARGETS"
+Convenience wrappers around the options above (see the Makefile):
+.TP
+.B make merger
+Build
+.B stlab
+and run
+.BR "\-\-merger \-\-visual"
+(macOS window).
+.TP
+.B make merger-shot
+Render a 700-frame merger still to
+.IR build/merger/shot.ppm .
+.TP
+.B make space
+Run
+.B \-\-space
+windowed (macOS).
+.TP
+.B make space-shot
+Render a 300-frame space still to
+.IR build/space/shot.ppm .
+.TP
+.B make ephem-accuracy
+Run
+.BR "stephem \-\-accuracy" :
+integrate the catalog from J2000 to today and compare every body
+against its fetched Horizons vector. Slow; deliberately not part of
+.BR "make verify" .
+.SH EXIT STATUS
+.TP
+.B 0
+Success: help or list printed, batch run completed, or interactive session
+quit normally.
+.TP
+.B 1
+Runtime failure: scenario or preset setup failed, a step failed, or a CSV
+or PPM path could not be written.
+.TP
+.B 2
+Usage error: unknown flag, missing flag value, bad
+.B \-\-frames ,
+.B \-\-preset ,
+.B \-\-seed ,
+or
+.B \-\-integrator ,
+unknown scenario name, or bad preset index.
+.SH "SEE ALSO"
+.BR stverify (1),
+.BR sttest (1),
+.BR stsolar (1),
+.BR stfuzz (1),
+.BR stbench (1),
+.BR stspace (1),
+.BR stephem (1)
+.PP
+Project files: README.md, CONTRACT.md, doc/PHYSICS.md, doc/SPACE.md,
+doc/MERGER.md, doc/CAPABILITY.md.
+.SH NOTES
+Determinism: identical arguments (including
+.B \-\-seed
+for sandbox presets) produce byte-identical CSV and PPM files.
+Frame pacing
+.RB ( \-\-no\-adapt )
+changes wall-clock timing only, never output bytes.
+All physics quantities are SI doubles; only the camera projection is
+normalized into a unitless view box.
